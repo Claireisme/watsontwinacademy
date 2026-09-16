@@ -139,9 +139,14 @@ Resend 幂等窗口有时限；在网络超时、供应商已接收但本地未�
 
 ## 当前 Cloudflare 资源（2026-09-16）
 
-- Pages：`watson-twin-academy`，GitHub `Claireisme/watsontwinacademy` 的 `main` 分支自动部署。
+- Pages：`watson-twin-academy`，已关联 GitHub `Claireisme/watsontwinacademy` 的 `main` 分支；自动部署设置已开启，但本次推送未触发构建，目前通过 API 手动触发 Git 构建。需要检查 Cloudflare GitHub 应用对此仓库的授权，不能视为自动部署已验收。
 - 验证入口：`https://watson-twin-academy.pages.dev`；SITE_URL 暂指向此地址。
 - PUBLIC_SITE_URL 仍为正式域名，因此 pages.dev 页面保持 noindex。正式域名尚未切换。
 - D1：`wta-db`，初始三项 migration 已应用；R2：`wta-media`。
 - 分支预览关闭；启用前绑定独立预览资源。
 - 后台 Access、Turnstile 与邮件配置须单独完成并验收。
+
+- Turnstile 正式组件已配置；secret 仅保存于 Pages，公开 site key 在 wrangler 配置中。
+- Wrangler OAuth 对 Access API 返回 403；后台登录仍需配置 Zero Trust Access。
+- Resend、发信域名、管理员邮箱及通知收件邮箱尚待提供与验证；真实投递未验收。
+- 线上公共页面、静态素材、robots/sitemap 访问通过；未登录后台/API 为 401，缺失媒体为 404。
