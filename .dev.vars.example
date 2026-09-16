@@ -1,0 +1,17 @@
+# Copy to .dev.vars for LOCAL development only. Never commit secrets.
+ENVIRONMENT=local
+PUBLIC_SITE_URL=https://watsontwinacademy.ie
+SITE_URL=http://192.168.1.111:8788
+LOCAL_PREVIEW_ORIGIN=http://192.168.1.111:8788
+# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+LOCAL_ADMIN_TOKEN=replace-with-a-random-local-token
+# Public site key and server secret: use Cloudflare test keys locally.
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+# Production configuration; enter secrets via Cloudflare dashboard / wrangler secret.
+ACCESS_TEAM_DOMAIN=
+ACCESS_AUD=
+ADMIN_EMAILS=
+RESEND_API_KEY=
+MAIL_FROM=
+NOTIFICATION_EMAIL=

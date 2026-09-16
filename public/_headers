@@ -1,0 +1,8 @@
+/assets/*
+  Cache-Control: public, max-age=3600
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+/assets/styles.css
+  Cache-Control: no-cache
+/assets/app.js
+  Cache-Control: no-cache

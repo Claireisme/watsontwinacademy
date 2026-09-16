@@ -1,0 +1,18 @@
+name = "watson-twin-academy"
+pages_build_output_dir = "./dist"
+compatibility_date = "2026-09-01"
+
+[vars]
+SITE_URL = "https://watsontwinacademy.ie"
+PUBLIC_SITE_URL = "https://watsontwinacademy.ie"
+ENVIRONMENT = "production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wta-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "wta-media"

@@ -1,0 +1,32 @@
+{
+  "name": "watson-twin-academy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && wrangler pages dev dist --ip 0.0.0.0 --port 8788",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:local": "wrangler d1 migrations apply wta-db --local",
+    "db:remote": "wrangler d1 migrations apply wta-db --remote",
+    "deploy": "node scripts/predeploy.mjs && npm run build && wrangler pages deploy dist",
+    "smoke": "node scripts/smoke.mjs",
+    "test:browser": "node scripts/browser-check.mjs",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "hono": "^4.9.0",
+    "jose": "^6.1.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260911.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.30.0"
+  }
+}

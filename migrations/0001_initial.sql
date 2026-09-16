@@ -1,0 +1,11 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE settings (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE courses (id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, category TEXT NOT NULL, summary TEXT NOT NULL, description TEXT NOT NULL, ages TEXT NOT NULL DEFAULT '', schedule TEXT NOT NULL DEFAULT '', price TEXT NOT NULL DEFAULT '', image TEXT NOT NULL DEFAULT '', published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)), sort_order INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE gallery (id TEXT PRIMARY KEY, image TEXT NOT NULL, alt TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Academy life', published INTEGER NOT NULL DEFAULT 1 CHECK(published IN (0,1)), sort_order INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE enquiries (id TEXT PRIMARY KEY, parent_name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', age_group TEXT NOT NULL DEFAULT '', course_id TEXT REFERENCES courses(id) ON DELETE SET NULL, message TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','contacted','enrolled','closed')), consent_version TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE mail_outbox (enquiry_id TEXT PRIMARY KEY REFERENCES enquiries(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sending','sent','failed')), attempts INTEGER NOT NULL DEFAULT 0, provider_id TEXT, last_error TEXT, locked_at INTEGER, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE rate_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 1, expires_at INTEGER NOT NULL);
+CREATE TABLE audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT NOT NULL, action TEXT NOT NULL, record_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX idx_enquiries_created ON enquiries(created_at DESC);
+CREATE INDEX idx_outbox_status ON mail_outbox(status);
+CREATE INDEX idx_rate_expires ON rate_limits(expires_at);
