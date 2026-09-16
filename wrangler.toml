@@ -7,6 +7,7 @@ compatibility_date = "2026-09-01"
 SITE_URL = "https://watson-twin-academy.pages.dev"
 PUBLIC_SITE_URL = "https://watsontwinacademy.ie"
 ENVIRONMENT = "production"
+TURNSTILE_SITE_KEY = "0x4AAAAAAE5Pip_zkwKr62Se"
 
 [[d1_databases]]
 binding = "DB"
