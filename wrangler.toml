@@ -3,14 +3,15 @@ pages_build_output_dir = "./dist"
 compatibility_date = "2026-09-01"
 
 [vars]
-SITE_URL = "https://watsontwinacademy.ie"
+# Update SITE_URL when the custom domain is activated.
+SITE_URL = "https://watson-twin-academy.pages.dev"
 PUBLIC_SITE_URL = "https://watsontwinacademy.ie"
 ENVIRONMENT = "production"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "wta-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "5cf1c46d-3ca0-41ce-9797-1be66ea4cb39"
 migrations_dir = "migrations"
 
 [[r2_buckets]]

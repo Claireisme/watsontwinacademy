@@ -4,7 +4,7 @@
 
 仓库：<https://github.com/Claireisme/watsontwinacademy>，生产分支 `main`。
 
-1. 先创建下文的 D1 数据库和 R2 桶，把真实 D1 ID 写回 `wrangler.toml` 并提交；当前全零 ID 仅为本地占位，不能直接部署。
+1. 先创建下文的 D1 数据库和 R2 桶，把真实 D1 ID 写回 `wrangler.toml` 并提交；当前已配置本站真实 D1 ID。
 2. 应用 D1 migrations，不能仅创建空数据库。
 3. Cloudflare → Workers & Pages → Create application → Pages → Import an existing Git repository，连接上述仓库。
 4. Framework preset 选 **None**；Build command 填 `npm run build`；Build output directory 填 `dist`；Root directory 留空；环境变量 `NODE_VERSION=24`。
@@ -136,3 +136,12 @@ Resend 幂等窗口有时限；在网络超时、供应商已接收但本地未�
 - [Access JWT validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/)
 - [Turnstile server validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/)
 - [Resend send email API](https://resend.com/docs/api-reference/emails/send-email)
+
+## 当前 Cloudflare 资源（2026-09-16）
+
+- Pages：`watson-twin-academy`，GitHub `Claireisme/watsontwinacademy` 的 `main` 分支自动部署。
+- 验证入口：`https://watson-twin-academy.pages.dev`；SITE_URL 暂指向此地址。
+- PUBLIC_SITE_URL 仍为正式域名，因此 pages.dev 页面保持 noindex。正式域名尚未切换。
+- D1：`wta-db`，初始三项 migration 已应用；R2：`wta-media`。
+- 分支预览关闭；启用前绑定独立预览资源。
+- 后台 Access、Turnstile 与邮件配置须单独完成并验收。
