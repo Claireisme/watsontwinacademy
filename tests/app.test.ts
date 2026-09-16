@@ -5,6 +5,7 @@ import { generateKeyPair,exportJWK,SignJWT } from 'jose';
 import app from '../src/worker';
 import { defaults,seedCourses } from '../src/defaults';
 import { sendEnquiry } from '../src/mail';
+import {newReference} from '../src/reference';
 import {isLocal} from '../src/security';
 import type { Env } from '../src/types';
 let sqlite:DatabaseSync,env:Env,pending:Promise<unknown>[];
@@ -20,7 +21,7 @@ function req(path:string,method='GET',data?:unknown,admin=false,origin='http://l
 }
 const enquiry=()=>({id:crypto.randomUUID(),parent_name:'Test Parent',email:'parent@example.com',phone:'087 1234567',age_group:'5–7',course_id:'irish-dance',message:'Which class is suitable?',consent:true,website:'',turnstile:'test-token'});
 beforeEach(()=>{
- sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync('migrations/0001_initial.sql','utf8'));sqlite.exec(readFileSync('migrations/0003_content_seo.sql','utf8'));
+ sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync('migrations/0001_initial.sql','utf8'));sqlite.exec(readFileSync('migrations/0003_content_seo.sql','utf8'));sqlite.exec(readFileSync('migrations/0004_enquiry_reference.sql','utf8'));
  sqlite.prepare('INSERT INTO settings(id,data) VALUES(1,?)').run(JSON.stringify(defaults));
  for(const c of seedCourses)sqlite.prepare('INSERT INTO courses(id,slug,title,category,summary,description,image,published) VALUES(?,?,?,?,?,?,?,1)').run(c.id,c.slug,c.title,c.category,c.summary,c.description,c.image);
  env={DB:database(),MEDIA:{} as R2Bucket,ASSETS:{} as Fetcher,SITE_URL:'http://localhost:8788',ENVIRONMENT:'local',LOCAL_ADMIN_TOKEN:token,TURNSTILE_SECRET_KEY:'test',TURNSTILE_SITE_KEY:'test'};pending=[];
@@ -55,6 +56,22 @@ describe('public website and access control',()=>{
  it('sets private cache and framing headers',async()=>{const r=await req('/admin','GET',undefined,true);expect(r.headers.get('cache-control')).toBe('no-store');expect(r.headers.get('x-frame-options')).toBe('DENY');expect(r.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");});
 });
 describe('enquiry durability and notifications',()=>{
+ it('uses Dublin date at the UTC day boundary',()=>{expect(newReference(new Date('2026-09-16T23:30:00Z'))).toMatch(/^260917[a-z]{3}$/)});
+ it('keeps one short reference on retries and displays it in admin',async()=>{
+  const d=enquiry();const first=await (await req('/api/enquiries','POST',d)).json() as any;
+  expect(first.reference).toMatch(/^\d{6}[a-z]{3}$/);
+  const repeat=await (await req('/api/enquiries','POST',d)).json() as any;
+  expect(repeat.reference).toBe(first.reference);
+  const html=await (await req('/admin/enquiries','GET',undefined,true)).text();expect(html).toContain('Reference: '+first.reference);
+ });
+ it('retries reference collisions without losing an enquiry or outbox',async()=>{
+  const random=vi.spyOn(crypto,'getRandomValues');random.mockImplementation((a:any)=>{a.fill(0);return a});
+  const first=await (await req('/api/enquiries','POST',enquiry())).json() as any;
+  let calls=0;random.mockImplementation((a:any)=>{a.fill(calls++<3?0:1);return a});
+  const second=await (await req('/api/enquiries','POST',enquiry())).json() as any;
+  expect(first.reference.slice(-3)).toBe('aaa');expect(second.reference.slice(-3)).toBe('bbb');
+  expect(sqlite.prepare('SELECT count(*) n FROM mail_outbox').get()?.n).toBe(2);random.mockRestore();
+ });
  it('saves enquiry and outbox before returning success',async()=>{const d=enquiry();const r=await req('/api/enquiries','POST',d);expect(r.status).toBe(201);expect(sqlite.prepare('SELECT id FROM enquiries').get()).toEqual({id:d.id});expect(sqlite.prepare('SELECT enquiry_id FROM mail_outbox').get()).toEqual({enquiry_id:d.id});await Promise.all(pending);expect(sqlite.prepare('SELECT status FROM mail_outbox').get()).toEqual({status:'failed'});});
  it('rejects missing consent without saving',async()=>{expect((await req('/api/enquiries','POST',{...enquiry(),consent:false})).status).toBe(400);expect(sqlite.prepare('SELECT count(*) n FROM enquiries').get()?.n).toBe(0)});
  it('requires server-side Turnstile verification',async()=>{vi.stubGlobal('fetch',vi.fn(async()=>Response.json({success:false})));expect((await req('/api/enquiries','POST',enquiry())).status).toBe(400);expect(sqlite.prepare('SELECT count(*) n FROM enquiries').get()?.n).toBe(0)});
@@ -62,7 +79,7 @@ describe('enquiry durability and notifications',()=>{
  it('does not save honeypot submissions',async()=>{expect((await req('/api/enquiries','POST',{...enquiry(),website:'spam'})).status).toBe(200);expect(sqlite.prepare('SELECT count(*) n FROM enquiries').get()?.n).toBe(0)});
  it('does not duplicate retried form submissions',async()=>{const d=enquiry();await req('/api/enquiries','POST',d);await req('/api/enquiries','POST',d);await Promise.all(pending);expect(sqlite.prepare('SELECT count(*) n FROM enquiries').get()?.n).toBe(1);expect(sqlite.prepare('SELECT attempts FROM mail_outbox').get()?.attempts).toBe(1)});
  it('limits excessive enquiries',async()=>{for(let i=0;i<8;i++)await req('/api/enquiries','POST',{...enquiry(),course_id:'not-real'});expect((await req('/api/enquiries','POST',enquiry())).status).toBe(429)});
- it('retries a failed notification with reply-to and stable provider idempotency',async()=>{const d=enquiry();await req('/api/enquiries','POST',d);await Promise.all(pending);env.RESEND_API_KEY='fake-test-key';env.MAIL_FROM='WTA <hello@example.com>';env.NOTIFICATION_EMAIL='academy@gmail.com';const mock=vi.fn(async()=>Response.json({id:'provider-123'}));vi.stubGlobal('fetch',mock);expect(await sendEnquiry(env,d.id)).toBe(true);expect(await sendEnquiry(env,d.id)).toBe(false);expect(mock).toHaveBeenCalledTimes(1);const init=(mock.mock.calls[0] as unknown as [string,RequestInit])[1];const payload=JSON.parse(init.body as string);expect(payload.to).toEqual(['academy@gmail.com']);expect(payload.reply_to).toBe(d.email);expect((init.headers as Record<string,string>)['Idempotency-Key']).toBe(`wta-enquiry-${d.id}`);expect(sqlite.prepare('SELECT status FROM mail_outbox').get()?.status).toBe('sent')});
+ it('retries a failed notification with reply-to and stable provider idempotency',async()=>{const d=enquiry();await req('/api/enquiries','POST',d);await Promise.all(pending);env.RESEND_API_KEY='fake-test-key';env.MAIL_FROM='WTA <hello@example.com>';env.NOTIFICATION_EMAIL='academy@gmail.com';const mock=vi.fn(async()=>Response.json({id:'provider-123'}));vi.stubGlobal('fetch',mock);expect(await sendEnquiry(env,d.id)).toBe(true);expect(await sendEnquiry(env,d.id)).toBe(false);expect(mock).toHaveBeenCalledTimes(1);const init=(mock.mock.calls[0] as unknown as [string,RequestInit])[1];const payload=JSON.parse(init.body as string);expect(payload.to).toEqual(['academy@gmail.com']);expect(payload.reply_to).toBe(d.email);expect(payload.text).toContain('Reference: '+sqlite.prepare('SELECT reference FROM enquiries WHERE id=?').get(d.id)?.reference);expect((init.headers as Record<string,string>)['Idempotency-Key']).toBe(`wta-enquiry-${d.id}`);expect(sqlite.prepare('SELECT status FROM mail_outbox').get()?.status).toBe('sent')});
  it('records provider rejection without losing the enquiry',async()=>{const d=enquiry();env.RESEND_API_KEY='fake';env.MAIL_FROM='test@example.com';env.NOTIFICATION_EMAIL='academy@gmail.com';vi.stubGlobal('fetch',vi.fn(async(url:string)=>url.includes('siteverify')?Response.json({success:true,hostname:'localhost'}):Response.json({}, {status:503})));expect((await req('/api/enquiries','POST',d)).status).toBe(201);await Promise.all(pending);expect(sqlite.prepare('SELECT status FROM mail_outbox').get()?.status).toBe('failed');expect(sqlite.prepare('SELECT id FROM enquiries').get()?.id).toBe(d.id)});
  it('rejects oversized messages',async()=>{expect((await req('/api/enquiries','POST',{...enquiry(),message:'x'.repeat(35000)})).status).toBe(413)});
 });

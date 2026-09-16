@@ -6,7 +6,7 @@ let toastTimer:ReturnType<typeof setTimeout>;
 function toast(message:string){const el=document.querySelector('#toast');if(el){el.textContent=message;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.textContent='',6000)}}
 async function request(url:string,method:string,data?:unknown){
  const response=await fetch(url,{method,headers:data instanceof FormData?{}:{'Content-Type':'application/json'},body:data===undefined?undefined:data instanceof FormData?data:JSON.stringify(data)});
- let result;try{result=await response.json() as {error?:string;path?:string;id?:string;redirect?:string}}catch{throw new Error('Could not read the response. Please reload and try again.')}
+ let result;try{result=await response.json() as {error?:string;path?:string;reference?:string;id?:string;redirect?:string}}catch{throw new Error('Could not read the response. Please reload and try again.')}
  if(!response.ok)throw new Error(result.error||'Something went wrong. Please try again.');return result;
 }
 function busy(form:HTMLFormElement,value:boolean){form.querySelectorAll<HTMLButtonElement>('button[type="submit"],button:not([type])').forEach(b=>b.disabled=value);form.setAttribute('aria-busy',String(value))}
@@ -29,7 +29,7 @@ enquiry?.addEventListener('submit',async event=>{
   const d=new FormData(enquiry),payload={id:enquiryId,parent_name:d.get('parent_name'),email:d.get('email'),phone:d.get('phone'),age_group:d.get('age_group'),course_id:d.get('course_id'),message:d.get('message'),website:d.get('website'),consent:d.get('consent')==='on',turnstile:d.get('cf-turnstile-response')||''};
   if(!payload.turnstile)throw new Error('Please complete the security check before sending.');
   const result=await request('/api/enquiries','POST',payload);
-  enquiry.hidden=true;const success=document.querySelector<HTMLElement>('#enquiry-success')!;success.hidden=false;document.querySelector('#enquiry-reference')!.textContent=result.id||enquiryId;success.focus();
+  enquiry.hidden=true;const success=document.querySelector<HTMLElement>('#enquiry-success')!;success.hidden=false;document.querySelector('#enquiry-reference')!.textContent=result.reference||result.id||enquiryId;success.focus();
  }catch(e){error(enquiry,e);window.turnstile?.reset()}finally{busy(enquiry,false)}
 });
 document.querySelectorAll<HTMLFormElement>('.editor-form').forEach(form=>form.addEventListener('submit',async event=>{

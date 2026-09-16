@@ -1,3 +1,4 @@
+import { newReference } from './reference';
 import { Hono, type Context } from 'hono';
 import { setCookie,deleteCookie } from 'hono/cookie';
 import type { AppEnv } from './types';
@@ -21,14 +22,24 @@ api.post('/enquiries',async c=>{
  if(!await rateLimit(c.env,ip,'enquiry',8))return c.json({error:'Too many enquiries. Please wait a few minutes or contact us by phone.'},429);
  if(!await verifyTurnstile(c.env,d.turnstile,ip,new URL(c.req.url).hostname))return c.json({error:'Please complete the security check and try again.'},400);
  if(d.course_id&&!await c.env.DB.prepare('SELECT id FROM courses WHERE id=? AND published=1').bind(d.course_id).first())return c.json({error:'Please choose a currently available class.'},400);
- const existing=await c.env.DB.prepare('SELECT id FROM enquiries WHERE id=?').bind(d.id).first();
- if(existing)return c.json({ok:true,id:d.id});
- await c.env.DB.batch([
-  c.env.DB.prepare('INSERT OR IGNORE INTO enquiries(id,parent_name,email,phone,age_group,course_id,message,consent_version) VALUES(?,?,?,?,?,?,?,?)').bind(d.id,d.parent_name,d.email.toLowerCase(),d.phone,d.age_group,d.course_id||null,d.message,'2026-09-v1'),
-  c.env.DB.prepare('INSERT OR IGNORE INTO mail_outbox(enquiry_id) VALUES(?)').bind(d.id)
- ]);
- c.executionCtx.waitUntil(sendEnquiry(c.env,d.id));
- return c.json({ok:true,id:d.id},201);
+ const existing=await c.env.DB.prepare('SELECT id,reference FROM enquiries WHERE id=?').bind(d.id).first<{id:string;reference:string|null}>();
+ if(existing)return c.json({ok:true,id:d.id,reference:existing.reference||existing.id});
+ for(let attempt=0;attempt<12;attempt++){
+  const reference=newReference();
+  try{
+   await c.env.DB.batch([
+    c.env.DB.prepare('INSERT INTO enquiries(id,parent_name,email,phone,age_group,course_id,message,consent_version,reference) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(d.id,d.parent_name,d.email.toLowerCase(),d.phone,d.age_group,d.course_id||null,d.message,'2026-09-v1',reference),
+    c.env.DB.prepare('INSERT OR IGNORE INTO mail_outbox(enquiry_id) VALUES(?)').bind(d.id)
+   ]);
+  }catch(e){
+   if(String(e).includes('UNIQUE constraint failed: enquiries.reference'))continue;
+   throw e;
+  }
+  const saved=await c.env.DB.prepare('SELECT reference FROM enquiries WHERE id=?').bind(d.id).first<{reference:string|null}>();
+  c.executionCtx.waitUntil(sendEnquiry(c.env,d.id));
+  return c.json({ok:true,id:d.id,reference:saved?.reference||d.id},201);
+ }
+ return c.json({error:'Please try submitting again.'},503);
 });
 api.put('/admin/settings',async c=>{
  const parsed=settingsSchema.safeParse(await c.req.json());if(!parsed.success)return c.json({error:parsed.error.issues[0].message},400);

@@ -56,3 +56,7 @@ Email 状态不是 `sent` 时检查原因；修复邮件配置后点击 Retry no
 ## 页面草稿与 SEO
 
 新增 Pages & publishing 和 SEO & sharing，操作流程及数据库结构见 [SEO 与内容管理指南](SEO-CONTENT.md)。
+
+## 咨询短编号
+
+新咨询对外显示 `yymmddabc`：日期使用 Europe/Dublin 时区，后三位为随机小写字母。数据库唯一索引与冲突重试防止重复；提交重试返回同一编号。成功页、通知邮件和后台统一显示。内部 UUID 继续用于关联与幂等；旧咨询保留已发邮件中的原编号。部署此版本前应用 `0004_enquiry_reference.sql`。
