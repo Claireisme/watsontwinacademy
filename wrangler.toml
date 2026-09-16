@@ -3,10 +3,11 @@ pages_build_output_dir = "./dist"
 compatibility_date = "2026-09-01"
 
 [vars]
-# Update SITE_URL when the custom domain is activated.
-SITE_URL = "https://watson-twin-academy.pages.dev"
+SITE_URL = "https://watson.520.ie"
 PUBLIC_SITE_URL = "https://watsontwinacademy.ie"
 ENVIRONMENT = "production"
+ACCESS_TEAM_DOMAIN = "https://ili88.cloudflareaccess.com"
+ACCESS_AUD = "f2298095cd296f470688dc0ab9d64c2b9ae51ad287af33f18a06314dd0c44a41"
 TURNSTILE_SITE_KEY = "0x4AAAAAAE5Pip_zkwKr62Se"
 
 [[d1_databases]]
